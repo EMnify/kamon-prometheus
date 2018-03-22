@@ -17,7 +17,7 @@ package kamon.prometheus
 
 import java.time.Duration
 
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigValueType}
 import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoHTTPD.{Response, newFixedLengthResponse}
 import kamon.{Kamon, MetricReporter}
@@ -97,12 +97,21 @@ class PrometheusReporter extends MetricReporter {
       embeddedServerPort = prometheusConfig.getInt("embedded-server.port"),
       defaultBuckets = prometheusConfig.getDoubleList("buckets.default-buckets").asScala,
       timeBuckets = prometheusConfig.getDoubleList("buckets.time-buckets").asScala,
-      informationBuckets = prometheusConfig.getDoubleList("buckets.information-buckets").asScala
+      informationBuckets = prometheusConfig.getDoubleList("buckets.information-buckets").asScala,
+      customBuckets = getMappedDoubleList("buckets.custom", prometheusConfig)
     )
   }
+
+  private def getMappedDoubleList(key: String, conf: Config) = {
+    val cnf = conf.getConfig(key)
+    val keyMap = conf.getObject(key).asScala
+    (for ((k, v) <- keyMap if v.valueType() == ConfigValueType.LIST) yield
+      k -> cnf.getDoubleList(k).asScala.toList).toMap
+  }
+
 }
 
 object PrometheusReporter {
   case class Configuration(startEmbeddedServer: Boolean, embeddedServerHostname: String, embeddedServerPort: Int,
-    defaultBuckets: Seq[java.lang.Double], timeBuckets: Seq[java.lang.Double], informationBuckets: Seq[java.lang.Double])
+    defaultBuckets: Seq[java.lang.Double], timeBuckets: Seq[java.lang.Double], informationBuckets: Seq[java.lang.Double], customBuckets: Map[String, Seq[java.lang.Double]])
 }
